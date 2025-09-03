@@ -9,11 +9,11 @@ import {
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import countries from "i18n-iso-countries";
-
 import en from "i18n-iso-countries/langs/en.json";
 import hi from "i18n-iso-countries/langs/hi.json";
 import te from "../locales/te.json"; // custom Telugu
-import logo from "../logo.png"; // import logo from src folder
+import logo from "../logo.png"; 
+import { translations } from "../locales";
 
 countries.registerLocale(en);
 countries.registerLocale(hi);
@@ -40,20 +40,18 @@ const getColor = (mag: number) => {
 const FlyToLocation: React.FC<{ lat: number; lon: number }> = ({ lat, lon }) => {
   const map = useMap();
   useEffect(() => {
-    if (lat && lon) {
-      map.flyTo([lat, lon], 6, { duration: 1.5 });
-    }
+    if (lat && lon) map.flyTo([lat, lon], 6, { duration: 1.5 });
   }, [lat, lon, map]);
   return null;
 };
 
 // Legend Component
-const Legend: React.FC = () => {
+const Legend: React.FC<{ language: "en" | "hi" | "te" }> = ({ language }) => {
   const ranges = [
-    { label: "0 - 3", color: "green" },
-    { label: "3 - 5", color: "gold" },
-    { label: "5 - 7", color: "orange" },
-    { label: "7+", color: "red" },
+    { label: translations[language].range_0_3, color: "green" },
+    { label: translations[language].range_3_5, color: "gold" },
+    { label: translations[language].range_5_7, color: "orange" },
+    { label: translations[language].range_7_plus, color: "red" },
   ];
 
   return (
@@ -70,7 +68,7 @@ const Legend: React.FC = () => {
         zIndex: 1000
       }}
     >
-      <b>Magnitude</b>
+      <b>{translations[language].magnitude}</b>
       {ranges.map((r) => (
         <div key={r.label} style={{ display: "flex", alignItems: "center", marginTop : "4px" }}>
           <span
@@ -82,7 +80,7 @@ const Legend: React.FC = () => {
               marginRight : "6px",
               borderRadius: "50%",
             }}
-          ></span>
+          />
           {r.label}
         </div>
       ))}
@@ -103,10 +101,9 @@ const EarthquakeMap: React.FC = () => {
   const [feed, setFeed] = useState<"daily" | "weekly">("weekly");
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch earthquake data
   const fetchData = async () => {
     try {
-      setError(null); // reset previous errors
+      setError(null);
       const url =
         feed === "daily"
           ? "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
@@ -114,10 +111,10 @@ const EarthquakeMap: React.FC = () => {
 
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Failed to fetch data: ${res.statusText}`);
-
       const data = await res.json();
+
       if (!data.features || data.features.length === 0) {
-        setError("No earthquake data available.");
+        setError(translations[language].earthquakeData + " not available.");
         setEarthquakes([]);
         return;
       }
@@ -146,61 +143,37 @@ const EarthquakeMap: React.FC = () => {
 
       setEarthquakes(eqs);
     } catch (err: any) {
-      console.error("Error fetching earthquake data:", err);
-      setError("Failed to load earthquake data. Please try again later.");
+      console.error(err);
+      setError(translations[language].earthquakeData + " failed to load.");
       setEarthquakes([]);
     }
   };
 
-  // Re-fetch when feed changes
-  useEffect(() => {
-    fetchData();
-  }, [feed]);
+  useEffect(() => { fetchData(); }, [feed, language]);
 
   const formatCountry = (eq: Earthquake) => {
-    if (eq.country) {
-      return countries.getName(eq.country, language) || eq.country;
-    }
+    if (eq.country) return countries.getName(eq.country, language) || eq.country;
     const parts = eq.place.split(",").map((p) => p.trim());
     return parts[parts.length - 1] || "Unknown";
   };
 
   const applyFilter = (eqs: Earthquake[]) => {
     let filtered = eqs;
-    // Filter by magnitude range
     switch (filter) {
-      case "0-3":
-        filtered = filtered.filter((e) => e.mag < 3);
-        break;
-      case "3-5":
-        filtered = filtered.filter((e) => e.mag >= 3 && e.mag < 5);
-        break;
-      case "5-7":
-        filtered = filtered.filter((e) => e.mag >= 5 && e.mag < 7);
-        break;
-      case "7+":
-        filtered = filtered.filter((e) => e.mag >= 7);
-        break;
-      default:
-        break;
+      case "0-3": filtered = filtered.filter((e) => e.mag < 3); break;
+      case "3-5": filtered = filtered.filter((e) => e.mag >= 3 && e.mag < 5); break;
+      case "5-7": filtered = filtered.filter((e) => e.mag >= 5 && e.mag < 7); break;
+      case "7+": filtered = filtered.filter((e) => e.mag >= 7); break;
+      default: break;
     }
-    // Filter by search
-    if (searchTerm.trim() !== "") {
-      filtered = filtered.filter((e) =>
-        e.place.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
+    if (searchTerm.trim() !== "") filtered = filtered.filter((e) => e.place.toLowerCase().includes(searchTerm.toLowerCase()));
     return filtered;
   };
 
   const filteredData = applyFilter(earthquakes);
   const paginatedData = filteredData.slice(0, page * pageSize);
 
-  // Search button handler
-  const handleSearch = () => {
-    setSearchTerm(searchInput);
-    setPage(1);
-  };
+  const handleSearch = () => { setSearchTerm(searchInput); setPage(1); };
 
   const getFilterColor = (range: string) => {
     switch (range) {
@@ -215,115 +188,49 @@ const EarthquakeMap: React.FC = () => {
   return (
     <div style={{ height : "100vh", width : "100%", display: "flex", flexDirection: "column" }}>
       {/* Top Bar */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "10px",
-          background: "#1a1a1a",
-          color: "white"
-        }}
-      >
-        {/* Logo + Title */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px", background: "#1a1a1a", color: "white" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <img src={logo} alt="Logo.png" style={{ width : "40px", height : "40px" }} />
+          <img src={logo} alt="Logo" style={{ width : "40px", height : "40px" }} />
           <h2 style={{ margin: 0 }}>Earthquake Visualizer</h2>
         </div>
-
-        {/* Controls */}
         <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
           <input
             type="text"
-            placeholder="Search..."
+            placeholder={translations[language].searchPlaceholder}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            style={{
-              padding: "4px 6px",
-              borderRadius: "4px",
-              border: "1px solid #ccc",
-              color: "black",
-              width : "140px"
-            }}
+            style={{ padding: "4px 6px", borderRadius: "4px", border: "1px solid #ccc", color: "black", width : "140px" }}
           />
-          <button
-            onClick={handleSearch}
-            style={{
-              padding: "4px 8px",
-              borderRadius: "4px",
-              background: "#2196F3",
-              color: "white",
-              border: "none",
-              cursor: "pointer"
-            }}
-          >
-            🔍
-          </button>
-
-          {/* Feed Toggle */}
+          <button onClick={handleSearch} style={{ padding: "4px 8px", borderRadius: "4px", background: "#2196F3", color: "white", border: "none", cursor: "pointer" }}>🔍</button>
           <div style={{ display: "flex", gap: "6px" }}>
-            <button
-              onClick={() => setFeed("daily")}
-              style={{
-                padding: "4px 8px",
-                borderRadius: "4px",
-                background: feed === "daily" ? "#2196F3" : "#ccc",
-                color: feed === "daily" ? "white" : "black",
-                border: "none",
-                cursor: "pointer"
-              }}
-            >
-              Last 24h
-            </button>
-            <button
-              onClick={() => setFeed("weekly")}
-              style={{
-                padding: "4px 8px",
-                borderRadius: "4px",
-                background: feed === "weekly" ? "#2196F3" : "#ccc",
-                color: feed === "weekly" ? "white" : "black",
-                border: "none",
-                cursor: "pointer"
-              }}
-            >
-              Last 7d
-            </button>
+            <button onClick={() => setFeed("daily")} style={{ padding: "4px 8px", borderRadius: "4px", background: feed === "daily" ? "#2196F3" : "#ccc", color: feed === "daily" ? "white" : "black", border: "none", cursor: "pointer" }}>{translations[language].last24h}</button>
+            <button onClick={() => setFeed("weekly")} style={{ padding: "4px 8px", borderRadius: "4px", background: feed === "weekly" ? "#2196F3" : "#ccc", color: feed === "weekly" ? "white" : "black", border: "none", cursor: "pointer" }}>{translations[language].last7d}</button>
           </div>
-
-          <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value as "en" | "hi" | "te")}
-            style={{ padding: "6px", background: "#4CAF50", color: "white", border: "none", borderRadius: "4px" }}
-          >
+          <select value={language} onChange={(e) => setLanguage(e.target.value as any)} style={{ padding: "6px", background: "#4CAF50", color: "white", border: "none", borderRadius: "4px" }}>
             <option value="en">English</option>
             <option value="hi">हिन्दी</option>
             <option value="te">తెలుగు</option>
           </select>
-
           <select
-            value={filter}
-            onChange={(e) => { setFilter(e.target.value as any); setPage(1); }}
-            style={{
-              padding: "6px",
-              border: "none",
-              borderRadius: "4px",
-              color: "white",
-              cursor: "pointer",
-              background: getFilterColor(filter)
-            }}
-          >
-            <option value="all" style={{ background: "#FF9800", color: "black" }}>All</option>
-            <option value="0-3" style={{ background: "green", color: "white" }}>0 - 3</option>
-            <option value="3-5" style={{ background: "gold", color: "black" }}>3 - 5</option>
-            <option value="5-7" style={{ background: "orange", color: "white" }}>5 - 7</option>
-            <option value="7+" style={{ background: "red", color: "white" }}>7+</option>
-          </select>
-
-          <button
-            onClick={() => setShowTable(true)}
-            style={{ padding: "6px 12px", background: "#2196F3", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
-          >
-            Table View
+                value={filter}
+                onChange={(e) => { setFilter(e.target.value as any); setPage(1); }}
+                style={{
+                  padding: "4px 6px",
+                  borderRadius: "4px",
+                  border: "1px solid #ccc",
+                  cursor: "pointer",
+                  color: "white",
+                  background: getFilterColor(filter)
+                }}
+              >
+                <option value="all" style={{ background: "#FF9800", color: "black" }}>All</option>
+                <option value="0-3" style={{ background: "green", color: "white" }}>0 - 3</option>
+                <option value="3-5" style={{ background: "gold", color: "black" }}>3 - 5</option>
+                <option value="5-7" style={{ background: "orange", color: "white" }}>5 - 7</option>
+                <option value="7+" style={{ background: "red", color: "white" }}>7+</option>
+              </select>
+          <button onClick={() => setShowTable(true)} style={{ padding: "6px 12px", background: "#2196F3", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}>
+            {translations[language].tableView}
           </button>
         </div>
       </div>
@@ -340,22 +247,13 @@ const EarthquakeMap: React.FC = () => {
         <MapContainer center={[20, 80]} zoom={3} style={{ height : "100%", width : "100%" }}>
           <LayersControl position="topright">
             <LayersControl.BaseLayer checked name="Normal">
-              <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution="&copy; OpenStreetMap contributors"
-              />
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors"/>
             </LayersControl.BaseLayer>
             <LayersControl.BaseLayer name="Satellite">
-              <TileLayer
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                attribution="Tiles &copy; Esri"
-              />
+              <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution="Tiles &copy; Esri"/>
             </LayersControl.BaseLayer>
             <LayersControl.BaseLayer name="Dark">
-              <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                attribution="&copy; CARTO &copy; OpenStreetMap contributors"
-              />
+              <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution="&copy; CARTO &copy; OpenStreetMap contributors"/>
             </LayersControl.BaseLayer>
           </LayersControl>
 
@@ -369,96 +267,34 @@ const EarthquakeMap: React.FC = () => {
               <Popup>
                 <b>{eq.place}</b>
                 <br />
-                <b>Country:</b> {formatCountry(eq)}
+                <b>{translations[language].country}:</b> {formatCountry(eq)}
                 <br />
-                <b>Magnitude:</b> <span style={{ color: getColor(eq.mag), fontWeight: "bold" }}>{eq.mag}</span>
+                <b>{translations[language].mag}:</b> <span style={{ color: getColor(eq.mag), fontWeight: "bold" }}>{eq.mag}</span>
                 <br />
-                <b>Time:</b> {new Date(eq.time).toLocaleString(language)}
+                <b>{translations[language].time}:</b> {new Date(eq.time).toLocaleString(language)}
               </Popup>
             </CircleMarker>
           ))}
 
           {selectedEq && <FlyToLocation lat={selectedEq.lat} lon={selectedEq.lon} />}
-          <Legend />
+          <Legend language={language} />
         </MapContainer>
       </div>
 
       {/* Table Modal */}
       {showTable && (
-        <div
-          style={{
-            position: "fixed",
-            top : 0,
-            left : 0,
-            width : "100%",
-            height : "100%",
-            background: "rgba(0,0,0,0.8)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 2000
-          }}
-        >
-          <div
-            style={{
-              background: "white",
-              width : "90%",
-              height : "80%",
-              overflowY: "auto",
-              borderRadius: "10px",
-              padding: "20px",
-              position: "relative"
-            }}
-          >
-            <button
-              onClick={() => setShowTable(false)}
-              style={{
-                position: "absolute",
-                top : "10px",
-                right : "10px",
-                background: "red",
-                color: "white",
-                border: "none",
-                padding: "6px 12px",
-                borderRadius: "4px",
-                cursor: "pointer"
-              }}
-            >
-              ✖ Close
+        <div style={{ position: "fixed", top : 0, left : 0, width : "100%", height : "100%", background: "rgba(0,0,0,0.8)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 2000 }}>
+          <div style={{ background: "white", width : "90%", height : "80%", overflowY: "auto", borderRadius: "10px", padding: "20px", position: "relative" }}>
+            <button onClick={() => setShowTable(false)} style={{ position: "absolute", top : "10px", right : "10px", background: "red", color: "white", border: "none", padding: "6px 12px", borderRadius: "4px", cursor: "pointer" }}>
+              {translations[language].close}
             </button>
 
-            <h2 style={{ textAlign: "center", marginBottom : "15px" }}>🌍 Earthquake Data</h2>
+            <h2 style={{ textAlign: "center", marginBottom : "15px" }}>{translations[language].earthquakeData}</h2>
 
-            {/* Search & Filter in Table */}
+            {/* Search & Filter */}
             <div style={{ display: "flex", gap: "10px", marginBottom : "10px", alignItems: "center" }}>
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                style={{
-                  padding: "4px 6px",
-                  borderRadius: "4px",
-                  border: "1px solid #ccc",
-                  color: "black",
-                  width : "120px"
-                }}
-              />
-              <button
-                onClick={handleSearch}
-                style={{
-                  padding: "4px 8px",
-                  borderRadius: "4px",
-                  background: "#2196F3",
-                  color: "white",
-                  border: "none",
-                  cursor: "pointer"
-                }}
-              >
-                🔍
-              </button>
-
+              <input type="text" placeholder={translations[language].searchPlaceholder} value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ padding: "4px 6px", borderRadius: "4px", border: "1px solid #ccc", color: "black", width : "120px" }}/>
+              <button onClick={handleSearch} style={{ padding: "4px 8px", borderRadius: "4px", background: "#2196F3", color: "white", border: "none", cursor: "pointer" }}>🔍</button>
               <select
                 value={filter}
                 onChange={(e) => { setFilter(e.target.value as any); setPage(1); }}
@@ -482,19 +318,15 @@ const EarthquakeMap: React.FC = () => {
             <table style={{ width : "100%", borderCollapse: "collapse", fontSize: "14px" }}>
               <thead>
                 <tr style={{ background: "#f0f0f0" }}>
-                  <th style={{ padding: "6px", border: "1px solid #ccc" }}>Place</th>
-                  <th style={{ padding: "6px", border: "1px solid #ccc" }}>Country</th>
-                  <th style={{ padding: "6px", border: "1px solid #ccc" }}>Mag</th>
-                  <th style={{ padding: "6px", border: "1px solid #ccc" }}>Time</th>
+                  <th style={{ padding: "6px", border: "1px solid #ccc" }}>{translations[language].place}</th>
+                  <th style={{ padding: "6px", border: "1px solid #ccc" }}>{translations[language].country}</th>
+                  <th style={{ padding: "6px", border: "1px solid #ccc" }}>{translations[language].mag}</th>
+                  <th style={{ padding: "6px", border: "1px solid #ccc" }}>{translations[language].time}</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedData.map((eq) => (
-                  <tr
-                    key={eq.id}
-                    style={{ cursor: "pointer" }}
-                    onClick={() => { setSelectedEq(eq); setShowTable(false); }}
-                  >
+                  <tr key={eq.id} style={{ cursor: "pointer" }} onClick={() => { setSelectedEq(eq); setShowTable(false); }}>
                     <td style={{ padding: "6px", border: "1px solid #ccc" }}>{eq.place}</td>
                     <td style={{ padding: "6px", border: "1px solid #ccc" }}>{formatCountry(eq)}</td>
                     <td style={{ padding: "6px", border: "1px solid #ccc", color: getColor(eq.mag), fontWeight: "bold" }}>{eq.mag}</td>
@@ -505,10 +337,7 @@ const EarthquakeMap: React.FC = () => {
             </table>
 
             {page * pageSize < filteredData.length && (
-              <button
-                onClick={() => setPage(page + 1)}
-                style={{ marginTop : "10px", padding: "6px 12px", background: "#2196F3", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
-              >
+              <button onClick={() => setPage(page + 1)} style={{ marginTop : "10px", padding: "6px 12px", background: "#2196F3", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}>
                 Load More
               </button>
             )}
