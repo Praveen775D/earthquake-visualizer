@@ -25,3 +25,4 @@ This project visualizes earthquake data from USGS in real-time.
 
 ## Deployed Version
 [Live Demo]
+https://drive.google.com/file/d/1UpNikOwRtCjN7shqAeBcb5ki2vPjhDSV/view?usp=sharing
