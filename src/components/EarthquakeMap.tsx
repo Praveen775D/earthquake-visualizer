@@ -12,7 +12,7 @@ import countries from "i18n-iso-countries";
 import en from "i18n-iso-countries/langs/en.json";
 import hi from "i18n-iso-countries/langs/hi.json";
 import te from "../locales/te.json"; // custom Telugu
-import logo from "/logo.png"; 
+import logo from "/src/Logo.png"; 
 import { translations } from "../locales";
 
 countries.registerLocale(en);
